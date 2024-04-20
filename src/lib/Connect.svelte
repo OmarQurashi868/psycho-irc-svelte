@@ -1,8 +1,8 @@
 <script lang="ts">
     let registerMode = false;
 
-    let server = "";
-    let username = "";
+    let server = localStorage.getItem("server") || "";
+    let username = localStorage.getItem("username") || "";
     let password = "";
     let passwordConfirmation = "";
 
@@ -18,7 +18,13 @@
         error = "";
     };
 
-    const onSubmit = async () => {
+    const redirectToChat = () => {
+        window.location.pathname = "/chat"
+    }
+
+    const onSubmit = async (e: SubmitEvent) => {
+        e.preventDefault();
+
         isLoading = true;
         error = "";
 
@@ -44,37 +50,87 @@
             return;
         }
 
+        
+        let serverUrl = server;
+        
+        if (
+            !serverUrl.startsWith("http://") ||
+            !serverUrl.startsWith("https://")
+        ) {
+            serverUrl = "http://" + serverUrl;
+        }
+
+        if (serverUrl.includes("localhost")) {
+            serverUrl.replace("localhost", "127.0.0.1");
+        }
+        
+        localStorage.setItem("serverUrl", serverUrl.replace("http://", ""));
+        localStorage.setItem("username", username);
+
+        let statusCode = 0;
+
         // Register
         if (registerMode) {
             const body = {
                 username,
                 password,
-                passwordConfirmation
+                passwordConfirmation,
             };
 
-            fetch(`${server}/users/register`, {
-                method: "POST",
-                body: JSON.stringify(body),
-                headers: {
-                    "Content-type": "application/json",
-                },
-            })
-                .then((response) => response.json())
-                .then((data) => (error = data));
+            try {
+                fetch(`${serverUrl}/users/register`, {
+                    method: "POST",
+                    body: JSON.stringify(body),
+                    headers: {
+                        "Content-type": "application/json",
+                    },
+                })
+                    .then((response) => {
+                        statusCode = response.status;
+                        return response.json();
+                    })
+                    .then((data) => {
+                        if (statusCode != 200) {
+                            error = data["message"];
+                            isLoading = false;
+                            return;
+                        }
+                        localStorage.setItem("authtoken", data["token"]);
+                        redirectToChat();
+                    });
+            } catch (err: any) {
+                error = err;
+                isLoading = false;
+            }
+        } else {
+            // Login
+            const authHeader = {
+                "Content-Type": "text/plain",
+                Authorization: "Basic " + btoa(`${username}:${password}`),
+            };
+            try {
+                fetch(`${serverUrl}/users/login`, {
+                    method: "GET",
+                    headers: authHeader,
+                })
+                    .then((response) => {
+                        statusCode = response.status;
+                        return response.json();
+                    })
+                    .then((data) => {
+                        if (statusCode != 200) {
+                            error = data["message"];
+                            isLoading = false;
+                            return;
+                        }
+                        localStorage.setItem("authtoken", data["token"]);
+                        redirectToChat();
+                    });
+            } catch (err: any) {
+                error = err;
+                isLoading = false;
+            }
         }
-
-        // Login
-        const authHeader = {
-            "Content-Type": "text/plain",
-            "Authorization": "Basic " + btoa(`${username}:${password}`),
-        };
-
-        fetch(`${server}/users/login`, {
-            method: "GET",
-            headers: authHeader,
-        })
-            .then((response) => response.json())
-            .then((json) => (error = json));
     };
 </script>
 
@@ -86,7 +142,7 @@
         </div>
     </div>
 {/if}
-<div class="card w-96 bg-neutral shadow-xl">
+<form class="card w-96 bg-neutral shadow-xl" on:submit={onSubmit}>
     <!-- Server Address -->
     <div class="card-body">
         <label class="input input-bordered flex items-center gap-2">
@@ -167,7 +223,7 @@
             <button
                 disabled={isLoading}
                 class="btn btn-primary"
-                on:click={onSubmit}
+                type="submit"
             >
                 {#if isLoading}
                     <span class="loading loading-dots loading-md text-primary"
@@ -178,4 +234,4 @@
             </button>
         </div>
     </div>
-</div>
+</form>
