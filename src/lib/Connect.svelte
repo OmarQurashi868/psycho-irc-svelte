@@ -1,7 +1,7 @@
 <script lang="ts">
     let registerMode = false;
 
-    let server = localStorage.getItem("server") || "";
+    let server = localStorage.getItem("serverUrl") || "";
     let username = localStorage.getItem("username") || "";
     let password = "";
     let passwordConfirmation = "";
@@ -95,7 +95,8 @@
                             isLoading = false;
                             return;
                         }
-                        localStorage.setItem("authtoken", data["token"]);
+                        // localStorage.setItem("authtoken", data["token"]);
+                        document.cookie = `authtoken=${data["token"]}; path=/chat`
                         redirectToChat();
                     });
             } catch (err: any) {
@@ -123,7 +124,8 @@
                             isLoading = false;
                             return;
                         }
-                        localStorage.setItem("authtoken", data["token"]);
+                        // localStorage.setItem("authtoken", data["token"]);
+                        document.cookie = `authtoken=${data["token"]}; path=/chat`
                         redirectToChat();
                     });
             } catch (err: any) {
